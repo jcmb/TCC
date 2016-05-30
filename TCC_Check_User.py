@@ -65,7 +65,7 @@ def process_args(args):
 def main():
     (USER,ORG,PASSWD,Check_User,Verbose)=process_args(parse_args())
 
-    tcc=TCC.TCC(USER,ORG,PASSWD,Verbose)
+    tcc=TCC(USER,ORG,PASSWD,Verbose)
     if tcc.Login("JCMBsoft_TSD_Check"):
 
         Accounts=tcc.GetLoginAccounts()
