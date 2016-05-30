@@ -149,7 +149,7 @@ def check_directory(dir,Machines_With_Files):
 def main():
     (USER,ORG,PASSWD,TYPES,WARNING,CRITICAL,NAGIOS,HTML,HTML_File,Skip_Single,Verbose)=process_args(parse_args())
 
-    tcc=TCC.TCC(USER,ORG,PASSWD,Verbose)
+    tcc=TCC(USER,ORG,PASSWD,Verbose)
     if tcc.Login("JCMBsoft_TSD_Check"):
 
         filespaces=tcc.GetFileSpaces()
