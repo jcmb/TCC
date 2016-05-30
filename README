@@ -1,0 +1,14 @@
+Readme for TCC Utils
+
+See the Wiki at GitHub for more information
+
+Includes tools for:
+
+    Checking a TCC User account exists, (TCC_Check_User.py)
+
+    Reporting on file usage TCC_FileAccess
+
+    Checking and downloading files automatically from the TSD Filespace
+
+
+Install by running setup.py install

@@ -1,0 +1,7 @@
+#! /bin/bash
+#
+# Sample user details file for TCC tools that use bash scripts  change the user, org and password
+#
+USER=user
+ORG=org
+PASSWORD=password
