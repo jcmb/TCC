@@ -10,13 +10,9 @@ import time
 import calendar
 from collections import defaultdict
 from pprint import pprint
-#import urllib
 import urllib2
 from cookielib import CookieJar
 from datetime import datetime, timedelta, date
-#import cgi
-#import cgitb;
-#cgitb.enable() # Optional; for debugging only
 import logging
 import logging.handlers
 
@@ -83,6 +79,12 @@ def process_args(args):
    ORG=args.org.title()
    PASSWD=args.password
    Cacheing=not args.nocache
+
+   if args.Tell:
+      sys.stderr.write("User: {} Org: {}\n".format(USER,ORG))
+      sys.stderr.write("Verbose: {}\n".format(Verbose))
+      sys.stderr.write("Use Cache: {}\n".format(Cacheing))
+      sys.stderr.write("\n")
    return (USER,ORG,PASSWD,Cacheing)
 
 
@@ -104,9 +106,9 @@ HTML_File.write ('<br/><a href="#Summary">Goto Summary</a><br/>')
 HTML_File.write ("Generation Started at: {0}<br>".format(start_time.strftime("%Y-%m-%d %H:%M:%S")))
 
 #print "Logging In"
-#print "https://www.myconnectedsite.com/tcc/login\?username="+User+"&orgname="+Org+"&password="+Password+"&applicationkey=grk_user_login"
+#print "https://"+Org+".myconnectedsite.com/tcc/login\?username="+User+"&orgname="+Org+"&password="+Password+"&applicationkey=grk_user_login"
 try:
-   data=opener.open("https://www.myconnectedsite.com/tcc/login\?username="+User+"&orgname="+Org+"&password="+Password+"&applicationkey=grk_user_login")
+   data=opener.open("https://"+Org+".myconnectedsite.com/tcc/login\?username="+User+"&orgname="+Org+"&password="+Password+"&applicationkey=grk_user_login")
 except:
     my_logger.critical("Could not connect to TCC")
     HTML_File.write("Error: Could not login, check connection\n")
@@ -123,7 +125,7 @@ if not success:
 
 
 try:
-   data=opener.open("https://www.myconnectedsite.com/tcc/getfilespaces")
+   data=opener.open("https://"+Org+".myconnectedsite.com/tcc/getfilespaces")
 except:
     my_logger.critical("Error: Could not get files spaces, connection error")
     HTML_File.write("Error: Could not get files spaces\n")
@@ -200,7 +202,7 @@ for filespace in sorted_filespaces:
          else:
             my_logger.debug("Cache miss for " + org)
             try:
-               net_data=opener.open("https://www.myconnectedsite.com/tcc/fastdir?recursive=true&path=/&filespaceid="+fileSpaceId)
+               net_data=opener.open("https://"+Org+".myconnectedsite.com/tcc/fastdir?recursive=true&path=/&filespaceid="+fileSpaceId)
             except:
                my_logger.critical("TCC Org: " + org + " Could not access file space: " + fileSpaceId)
                continue
@@ -210,9 +212,9 @@ for filespace in sorted_filespaces:
             data.close
             data=open(org+".Sync.FastDir")
       else:
-         my_logger.debug("Getting " + org + " https://www.myconnectedsite.com/tcc/fastdir?recursive=true&path=/&filespaceid="+fileSpaceId)
+         my_logger.debug("Getting " + org + " https://"+Org+".myconnectedsite.com/tcc/fastdir?recursive=true&path=/&filespaceid="+fileSpaceId)
          try:
-            data=opener.open("https://www.myconnectedsite.com/tcc/fastdir?recursive=true&path=/&filespaceid="+fileSpaceId)
+            data=opener.open("https://"+Org+".myconnectedsite.com/tcc/fastdir?recursive=true&path=/&filespaceid="+fileSpaceId)
          except:
             my_logger.critical("TCC Org: " + org + " Could not access file space: " + fileSpaceId)
             continue
@@ -300,7 +302,7 @@ HTML_Unit.output_html_footer(HTML_File,Table_Names)
 HTML_File.close
 
 try:
-   data=opener.open("https://www.myconnectedsite.com/tcc/logoff")
+   data=opener.open("https://"+Org+".myconnectedsite.com/tcc/logoff")
 except:
    pass
 
