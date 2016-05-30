@@ -176,8 +176,7 @@ def main():
 
 
         if HTML:
-            logger.info('Outputing HTML')
-            print 'Outputing HTML'
+            logger.info('Outputting HTML')
 
             HTML_Unit.output_html_header(HTML_File,"Trimble Synronizer Data Information for: " + ORG)
             HTML_Unit.output_html_body(HTML_File)
