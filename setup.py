@@ -10,5 +10,11 @@ setup(name='TCC Utils',
       url='https://jcmbsoft.com/',
       license="MIT For Trimble, GPL V3 for everyone else",
       py_modules=['TCC','TSD_Process'],
-      scripts=['TCC_Check_User.py','TCC_Files/TCC_Files.sh','TCC_Files/TCC_FileAccess.py','TSD_Tools/TSD_Check.py','TSD_Tools/TSD_Download.py']
+      scripts=[
+        'TCC_Check_User.py',
+        'TCC_Files/TCC_Files.sh',
+        'TCC_Files/TCC_FileAccess.py',
+        'TSD_Tools/TSD_Check.py',
+        'TSD_Tools/TSD_Download.py',
+        'TAM_Items/TAM_Items.py']
      )
