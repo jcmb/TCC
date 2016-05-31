@@ -3,7 +3,12 @@
 import sys
 reload(sys)
 sys.setdefaultencoding('utf-8')
-sys.path.append("/Users/gkirk/Dropbox/Git/PyLib")
+#sys.path.append("/Users/gkirk/Dropbox/Git/PyLib")
+
+try:
+    assert sys.version_info >= (2,7,9       )
+except:
+    sys.exit("Need Python V2.7.9 or higher to run due to TLS Requirements" )
 
 from pprint import pprint
 import logging

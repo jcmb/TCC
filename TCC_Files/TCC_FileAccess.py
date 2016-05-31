@@ -1,8 +1,12 @@
 #! /usr/bin/env python
-
 import sys
 reload(sys)
 sys.setdefaultencoding('utf-8')
+
+try:
+    assert sys.version_info >= (2,7,9       )
+except:
+    sys.exit("Need Python V2.7.9 or higher to run due to TLS Requirements" )
 
 import os
 import json
