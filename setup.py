@@ -3,7 +3,7 @@
 from distutils.core import setup
 
 setup(name='TCC Utils',
-      version='1.0',
+      version='1.1',
       description='Trimble Connected Community Python Utilities',
       author='JCMBsoft',
       author_email='Geoffrey@jcmbsoft.com',
