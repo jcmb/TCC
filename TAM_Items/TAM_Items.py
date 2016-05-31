@@ -256,6 +256,7 @@ for asset in sorted(asset_serials):
     HTML_File.write(str(asset)+" : " + str(asset_serials[asset]) + " : " + str(devices[asset_serials[asset]])+ "<br/>")
 HTML_File.write("<br/>")
 
+HTML_Unit.output_html_footer(HTML_File,[])
 
 if NAGIOS:
     if not OK:
