@@ -51,6 +51,12 @@ def parse_args():
    argp.add_argument('--HTMLFILE', nargs='?', type=argparse.FileType('w'),default=sys.stdout,
                    help='Output HTML to this file. Otherwise stdout. Only valid in HTML mode')
 
+   argp.add_argument('--LS', action='store_true',
+                   help='Output each file on a single line, suitable for sending into another program.')
+
+   argp.add_argument('--LSFILE', nargs='?', type=argparse.FileType('w'),default=sys.stdout,
+                   help='Output LS to this file. Otherwise stdout. Only valid in LS mode')
+
    argp.add_argument('-t', '--type', metavar='EXTENSION', default=".tag",
                    help='file types to be checked')
 
@@ -92,6 +98,8 @@ def process_args(args):
    HTML=args.HTML
    HTML_File=args.HTMLFILE
    Skip_Single=args.single or args.nagios
+   LS=args.LS
+   LS_File=args.LSFILE
 
 
    if NAGIOS:
@@ -115,14 +123,14 @@ def process_args(args):
 
       sys.stderr.write("\n")
 
-   if not (HTML or NAGIOS ):
-      sys.exit("You must select HTML or NAGIOS output")
+   if not (HTML or NAGIOS or LS):
+      sys.exit("You must select HTML, LS or NAGIOS output")
 
-   return (USER,ORG,PASSWD,TYPES,WARNING,CRITICAL,NAGIOS,HTML,HTML_File,Skip_Single,Verbose)
+   return (USER,ORG,PASSWD,TYPES,WARNING,CRITICAL,NAGIOS,HTML,HTML_File,LS,LS_File,Skip_Single,Verbose)
 
 
 
-def check_directory(dir,Machines_With_Files):
+def check_directory(dir,Machines_With_Files,LS,LS_File):
    chunk_size=1024*60
    files=0
 
@@ -131,12 +139,14 @@ def check_directory(dir,Machines_With_Files):
 #      pprint (entry)
       if entry["isFolder"]:
          logger.debug('Folder : '+ entry["entryName"])
-         (New_Files,Machines_With_Files)=check_directory(entry["entries"],Machines_With_Files)
+         (New_Files,Machines_With_Files)=check_directory(entry["entries"],Machines_With_Files,LS,LS_File)
          files+=New_Files
       else:
          if not "Production-Data (Archived)" in  entry["entryName"]:
             logger.info('File Not Processed: '+ entry["entryName"])
             files+=1
+            if LS:
+               LS_File.write("/{}\n".format(entry["entryName"]))
             MCD_Location=entry["entryName"].find("/Machine Control Data/")
             if MCD_Location == -1:
                 logger.warning('Did not find Machine Control Data in file name: '+ entry["entryName"])
@@ -152,7 +162,7 @@ def check_directory(dir,Machines_With_Files):
    return (files,Machines_With_Files)
 
 def main():
-    (USER,ORG,PASSWD,TYPES,WARNING,CRITICAL,NAGIOS,HTML,HTML_File,Skip_Single,Verbose)=process_args(parse_args())
+    (USER,ORG,PASSWD,TYPES,WARNING,CRITICAL,NAGIOS,HTML,HTML_File,LS,LS_File,Skip_Single,Verbose)=process_args(parse_args())
 
     tcc=TCC(USER,ORG,PASSWD,Verbose)
     if tcc.Login("JCMBsoft_TSD_Check"):
@@ -169,7 +179,7 @@ def main():
 # The dir json is a list of entries, if it is a folder then it has a a list of entrys which might be more directories, welcome to recursion
         Machines_With_Files=defaultdict(int)
 
-        (un_processed,Machines_With_Files)=check_directory(data["entries"], Machines_With_Files=defaultdict(int))
+        (un_processed,Machines_With_Files)=check_directory(data["entries"], defaultdict(int),LS,LS_File)
 
         tcc.Logoff()
         total_files=un_processed
