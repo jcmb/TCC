@@ -15,7 +15,7 @@ logging.getLogger("requests").setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 
 def parse_args():
-   argp = argparse.ArgumentParser("Download a Trimble Syncronizer data filespace"
+   argp = argparse.ArgumentParser("Download a Trimble Syncronizer data filespace",
    epilog="""
    V1.0 (c) JCMBsoft 2016
    """);
@@ -28,6 +28,10 @@ def parse_args():
 
    argp.add_argument('-t', '--type', metavar='EXTENSION', default="",
                    help='file types to be downloaded')
+
+   argp.add_argument('--noarchived', action='store_true',
+                   help='Ignore files in the Production-Data (Archived) folder')
+
 
    argp.add_argument('-v', '--verbose', action='count', default=0,
                    help='increase output verbosity (use up to 3 times)')
@@ -55,11 +59,12 @@ def process_args(args):
    ORG=args.org
    PASSWD=args.password
    TYPES=args.type
-   return (USER,ORG,PASSWD,TYPES)
+   NO_ARCHIVE=args.noarchived
+   return (USER,ORG,PASSWD,TYPES,NO_ARCHIVE,Verbose)
 
 
 
-def process_directory(dir,filespace_ID,tcc):
+def process_directory(dir,filespace_ID,tcc,NO_ARCHIVE):
    for entry in dir:
 #      pprint (entry)
       if entry["isFolder"]:
@@ -69,10 +74,13 @@ def process_directory(dir,filespace_ID,tcc):
          except:
             logging.debug("Failed to make Dir: " + entry["entryName"])
             pass #Assume that the dir is already there
-         process_directory(entry["entries"],filespace_ID,tcc)
+         process_directory(entry["entries"],filespace_ID,tcc,NO_ARCHIVE)
       else:
-         print 'Downloading: '+ entry["entryName"]
-         tcc.Download(filespace_ID,entry["entryName"],entry["entryName"])
+         if (not NO_ARCHIVE) or (entry["entryName"].find("Production-Data (Archived)")==-1):
+            print 'Downloading: '+ entry["entryName"]
+            tcc.Download(filespace_ID,entry["entryName"],entry["entryName"])
+         else:
+            print 'Skipping: '+ entry["entryName"]
 
 
 # The dir json is a list of entries, if it is a folder then it has a a list of entrys which might be more directories, welcome to recursion
@@ -80,7 +88,7 @@ def process_directory(dir,filespace_ID,tcc):
 
 def main():
     args=parse_args()
-    (USER,ORG,PASSWD,TYPES,Verbose)=process_args(args)
+    (USER,ORG,PASSWD,TYPES,NO_ARCHIVE,Verbose)=process_args(args)
     tcc=TCC.TCC(USER,ORG,PASSWD,Verbose)
     if tcc.Login("JCMBsoft_TSD_Download"):
 
@@ -94,7 +102,7 @@ def main():
         data=tcc.Dir(TSD_ID,TYPES)
 
 # The dir json is a list of entries, if it is a folder then it has a a list of entrys which might be more directories, welcome to recursion
-        process_directory(data["entries"],TSD_ID,tcc)
+        process_directory(data["entries"],TSD_ID,tcc,NO_ARCHIVE)
 
         tcc.Logout()
 
