@@ -3,6 +3,7 @@ import logging
 import requests
 import urllib
 from pprint import pprint
+from datetime import datetime 
 
 logging.basicConfig(level=logging.DEBUG)
 logging.getLogger("requests").setLevel(logging.WARNING)
@@ -141,3 +142,29 @@ class TCC:
         else:
            r=requests.get(self.TCC_API + "GetLoginAccounts?orgid="+orgid,cookies=self.login_cookies)
         return(r.json())
+
+    def GetOrganizationDashboard(self,orgtypefilter="",licensefilter="",orgtagfilter="",organizationProfiles="",membershipDetails="",deviceDetails="",groupDetails=""):
+        self.logger.debug("About to Get Org Dashboard: " +self.TCC_API + "GetOrganizationDashboard?membershipDetails="+membershipDetails+"&deviceDetails="+deviceDetails+"&organizationProfiles="+organizationProfiles)
+        r=requests.get(self.TCC_API + "GetOrganizationDashboard?membershipDetails="+membershipDetails+"&deviceDetails="+deviceDetails+"&organizationProfiles="+organizationProfiles,cookies=self.login_cookies)
+        return(r.json())
+        
+    def UpdateDateTime(self,filespaceid,path,createTime=None,modifyTime=None):
+        if createTime==None and modifyTime==None :
+#            print datetime.utcnow()
+#            print datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f")
+            createTime=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f")
+#            print modifyTime
+            modifyTime=createTime
+            self.logger.debug("UpdateDateTime, create and Modifytime not provided, set to now: {}".format(modifyTime))
+
+        params={
+          'filespaceid': filespaceid,
+          'path': path,
+          'createTime':createTime,
+          'modifyTime':modifyTime
+        }
+        
+        r=requests.get(self.TCC_API + "UpdateDateTime",cookies=self.login_cookies,params=params)
+        
+        return(r.json())
+            
