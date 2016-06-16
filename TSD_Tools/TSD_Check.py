@@ -187,7 +187,8 @@ def main():
         if Skip_Single:
             un_processed=0
             for Machine in Machines_With_Files:
-                un_processed+=Machines_With_Files[Machine]
+               if Machines_With_Files[Machine] >1:
+                 un_processed+=Machines_With_Files[Machine]
 
 
         if HTML:
