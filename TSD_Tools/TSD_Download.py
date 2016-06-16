@@ -17,7 +17,7 @@ logging.getLogger("urllib3").setLevel(logging.WARNING)
 def parse_args():
    argp = argparse.ArgumentParser("Download a Trimble Syncronizer data filespace",
    epilog="""
-   V1.0 (c) JCMBsoft 2016
+   V1.1 (c) JCMBsoft 2016
    """);
    argp.add_argument('-u', '--user', metavar='USER', required=True,
                    help='TCC User')
@@ -60,6 +60,13 @@ def process_args(args):
    PASSWD=args.password
    TYPES=args.type
    NO_ARCHIVE=args.noarchived
+   
+   if args.Tell:
+      sys.stderr.write("User: {} Org: {}\n".format(USER,ORG))
+      sys.stderr.write("Types: {}\n".format(TYPES))
+      sys.stderr.write("Skip Archived: {}\n".format(NO_ARCHIVE))
+      sys.stderr.write("Verbose: {}\n".format(Verbose))
+      sys.stderr.write("\n")
    return (USER,ORG,PASSWD,TYPES,NO_ARCHIVE,Verbose)
 
 
@@ -77,8 +84,10 @@ def process_directory(dir,filespace_ID,tcc,NO_ARCHIVE):
          process_directory(entry["entries"],filespace_ID,tcc,NO_ARCHIVE)
       else:
          if (not NO_ARCHIVE) or (entry["entryName"].find("Production-Data (Archived)")==-1):
-            print 'Downloading: '+ entry["entryName"]
-            tcc.Download(filespace_ID,entry["entryName"],entry["entryName"])
+            if tcc.Download(filespace_ID,entry["entryName"],entry["entryName"]):
+               print 'Downloaded: '+ entry["entryName"]
+            else:
+               print 'Failed to download: '+ entry["entryName"]
          else:
             print 'Skipping: '+ entry["entryName"]
 
@@ -104,7 +113,7 @@ def main():
 # The dir json is a list of entries, if it is a folder then it has a a list of entrys which might be more directories, welcome to recursion
         process_directory(data["entries"],TSD_ID,tcc,NO_ARCHIVE)
 
-        tcc.Logout()
+        tcc.Logoff()
 
 if __name__ == "__main__":
     main()
