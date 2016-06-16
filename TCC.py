@@ -117,12 +117,20 @@ class TCC:
 
         self.logger.debug("About to download: " + TCC_File + " to " + Local_FileName)
 
-        r=requests.get(self.TCC_API +"files?filespaceid=" + filespace_ID + '&path="%2F'+urllib.quote(TCC_File,'()')+'"',stream=True,cookies=self.login_cookies)
-        with open(Local_FileName, 'wb') as fd:
-            for chunk in r.iter_content(chunk_size):
-                fd.write(chunk)
+        r=requests.get(self.TCC_API +"files?filespaceid=" + filespace_ID + '&path=%2F'+urllib.quote(TCC_File,'()'),stream=True,cookies=self.login_cookies)
+        OK=None
+        if r.status_code == 200:
+           OK=True
+           with open(Local_FileName, 'wb') as fd:
+               for chunk in r.iter_content(chunk_size):
+                   fd.write(chunk)
 
-        self.logger.debug("Downloaded: " + TCC_File + " to " + Local_FileName)
+           self.logger.debug("Downloaded: " + TCC_File + " to " + Local_FileName)
+        else:
+           OK=False
+           self.logger.warning("Failed to download: " + TCC_File + " to " + Local_FileName)
+           
+        return (OK) 
 
     def ticket(self):
         if not self.Logged_In:
