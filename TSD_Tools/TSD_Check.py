@@ -180,7 +180,7 @@ def main():
 
         if TSD_ID == None:
             if HTML:
-              HTML_File.write ("<h1>Organisation does not have a Trimble Synronizer Data folder</h1>"))
+              HTML_File.write ("<h1>Organisation does not have a Trimble Synronizer Data folder</h1>")
               sys.exit(10)               
             else:
               raise ("Could not find TSD")
