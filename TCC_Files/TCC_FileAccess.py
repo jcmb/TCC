@@ -237,7 +237,7 @@ for filespace in sorted_filespaces:
       Total_Directories+=Number_Dirs
       Total_Files+=Number_Files
       Total_FileSize+=Files_Size
-      Total_FastDir_Size+=Fast_Dir_Size
+#      Total_FastDir_Size+=Fast_Dir_Size
 
       (Number_Machines,Number_SCS900s,Number_Workgroups,GCS900s,SCS900s)=TSD_Process.Process_TSD(Tree)
       my_logger.info('Number Machines: ' + str (Number_Machines))
@@ -259,6 +259,11 @@ for filespace in sorted_filespaces:
          TSD_Process.output_machines(HTML_File,org,GCS900s)
          Table_Names.append(org+"-GCS900")
          HTML_File.write("<p/>")
+
+         for machine in GCS900s:
+            Total_FastDir_Size+=machine[2]
+         
+
 
       if len(SCS900s) != 0 :
          TSD_Process.output_SCS900(HTML_File,org,SCS900s)
@@ -294,7 +299,7 @@ HTML_File.write('Number Directories</td><td>' + str (Total_Directories))
 HTML_File.write('</td></tr>\n')
 HTML_File.write('<tr><td>\n')
 HTML_File.write('Production Data Sync Size (Month)</td><td>' + humanbytes(Total_FastDir_Size*TSD_Process.Syncs_Per_Month))
-HTML_File.write('</td></tr>\n')
+#HTML_File.write('</td></tr>\n')
 HTML_File.write('</table><br/>\n')
 
 end_time=datetime.now()
