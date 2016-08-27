@@ -166,13 +166,24 @@ def main():
 
     tcc=TCC(USER,ORG,PASSWD,Verbose)
     if tcc.Login("JCMBsoft_TSD_Check"):
+        if HTML:
+            logger.info('Outputting HTML')
+
+            HTML_Unit.output_html_header(HTML_File,"Trimble Synronizer Data Information for: " + ORG)
+            HTML_Unit.output_html_body(HTML_File)
+            HTML_File.write ("Generated at: {0}<br>".format(datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+
 
         filespaces=tcc.GetFileSpaces()
 
         TSD_ID=tcc.Find_TSD_ID(filespaces)
 
         if TSD_ID == None:
-            raise ("Could not find TSD")
+            if HTML:
+              HTML_File.write ("<h1>Organisation does not have a Trimble Synronizer Data folder</h1>"))
+              sys.exit(10)               
+            else:
+              raise ("Could not find TSD")
 
         data=tcc.Dir(TSD_ID,TYPES)
 
@@ -192,12 +203,6 @@ def main():
 
 
         if HTML:
-            logger.info('Outputting HTML')
-
-            HTML_Unit.output_html_header(HTML_File,"Trimble Synronizer Data Information for: " + ORG)
-            HTML_Unit.output_html_body(HTML_File)
-            HTML_File.write ("Generated at: {0}<br>".format(datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-
             HTML_File.write("Total Unprocessed Files: "+ str(un_processed))
             HTML_Unit.output_table_header(HTML_File,"Machines","Machines with Unprocessed files",["Machine","Files"])
             for Machine in sorted(Machines_With_Files):
