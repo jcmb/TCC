@@ -10,7 +10,7 @@ import argparse
 import TCC
 
 #Setup the default logging here incase some thing sends a log message before we expect it
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.WARNING)
 logging.getLogger("requests").setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 
@@ -84,12 +84,15 @@ def process_directory(dir,filespace_ID,tcc,NO_ARCHIVE):
          process_directory(entry["entries"],filespace_ID,tcc,NO_ARCHIVE)
       else:
          if (not NO_ARCHIVE) or (entry["entryName"].find("Production-Data (Archived)")==-1):
-            if tcc.Download(filespace_ID,entry["entryName"],entry["entryName"]):
-               print 'Downloaded: '+ entry["entryName"]
-            else:
-               print 'Failed to download: '+ entry["entryName"]
+            if os.path.isfile(entry["entryName"]) and (os.path.getsize(entry["entryName"]) == int(entry["size"])):
+              print 'Skipping (Downloaded already): '+ entry["entryName"] 
+            else:             
+              if tcc.Download(filespace_ID,entry["entryName"],entry["entryName"]):
+                 print 'Downloaded: '+ entry["entryName"]
+              else:
+                 print 'Failed to download: '+ entry["entryName"]
          else:
-            print 'Skipping: '+ entry["entryName"]
+            print 'Skipping (Archived): '+ entry["entryName"]
 
 
 # The dir json is a list of entries, if it is a folder then it has a a list of entrys which might be more directories, welcome to recursion
