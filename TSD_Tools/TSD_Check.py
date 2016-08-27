@@ -134,15 +134,18 @@ def process_args(args):
 def check_directory(dir,Machines_With_Files,LS,LS_File):
    chunk_size=1024*60
    files=0
+   total_files=0
 
 
    for entry in dir:
 #      pprint (entry)
       if entry["isFolder"]:
          logger.debug('Folder : '+ entry["entryName"])
-         (New_Files,Machines_With_Files)=check_directory(entry["entries"],Machines_With_Files,LS,LS_File)
+         (New_Files,Machines_With_Files,Total_Files)=check_directory(entry["entries"],Machines_With_Files,LS,LS_File)
          files+=New_Files
+         total_files+=Total_Files
       else:
+         total_files+=1
          if not "Production-Data (Archived)" in  entry["entryName"]:
             logger.info('File Not Processed: '+ entry["entryName"])
             files+=1
@@ -160,7 +163,7 @@ def check_directory(dir,Machines_With_Files,LS,LS_File):
 
    logger.debug("Files: " + dir[0]["entryName"] + " ("+str(files)+")")
 #   pprint (Machines_With_Files)
-   return (files,Machines_With_Files)
+   return (files,Machines_With_Files,total_files)
 
 def main():
     (USER,ORG,PASSWD,TYPES,WARNING,CRITICAL,NAGIOS,HTML,HTML_File,LS,LS_File,Skip_Single,Verbose)=process_args(parse_args())
@@ -201,20 +204,27 @@ def main():
     FileSpaceStatistics=tcc.GetFileSpaceStatistics(TSD_ID)
     
     if FileSpaceStatistics != None:
-        HTML_File.write ("<ul>")
-        HTML_File.write ("<li>Number of files: {}\n</li>".format(FileSpaceStatistics["numberoffiles"]))
-        HTML_File.write ("<li>Size of files: {}\n</li>".format(HumanBytes.humanbytes(FileSpaceStatistics["sizeoffiles"])))
-        HTML_File.write ("</ul>")
-      
+        logger.info("Number of all files: {}".format(FileSpaceStatistics["numberoffiles"]))
+        logger.info("Size of all files: {}".format(HumanBytes.humanbytes(FileSpaceStatistics["sizeoffiles"])))
 
+        if HTML:
+            HTML_File.write ("<ul>")
+            HTML_File.write ("<li>Number of all files: {}\n</li>".format(FileSpaceStatistics["numberoffiles"]))
+            HTML_File.write ("<li>Size of all files: {}\n</li>".format(HumanBytes.humanbytes(FileSpaceStatistics["sizeoffiles"])))
+            HTML_File.write ("</ul>\n")
+      
     data=tcc.Dir(TSD_ID,TYPES)
 
 # The dir json is a list of entries, if it is a folder then it has a a list of entrys which might be more directories, welcome to recursion
     Machines_With_Files=defaultdict(int)
 
-    (un_processed,Machines_With_Files)=check_directory(data["entries"], defaultdict(int),LS,LS_File)
+    if "entries" in data:
+      (un_processed,Machines_With_Files,total_files)=check_directory(data["entries"], defaultdict(int),LS,LS_File)
+    else:
+      un_processed=0
+      total_files=0
+      Machines_With_Files=[]
 
-    total_files=un_processed
 
     tcc.Logoff()
 
@@ -224,9 +234,13 @@ def main():
            if Machines_With_Files[Machine] >1:
              un_processed+=Machines_With_Files[Machine]
 
+    logger.info("Total Files: {}".format(total_files))
+    logger.info("Total Unprocessed Files: {}".format(un_processed))
 
     if HTML:
-        HTML_File.write("Total Unprocessed Files: "+ str(un_processed))
+
+        HTML_File.write("Total Files: {}<br/>".format(total_files))
+        HTML_File.write("Total Unprocessed Files: {}<br/>".format(un_processed))
         HTML_Unit.output_table_header(HTML_File,"Machines","Machines with Unprocessed files",["Machine","Files"])
         for Machine in sorted(Machines_With_Files):
             if Skip_Single:
