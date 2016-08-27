@@ -165,65 +165,77 @@ def main():
     (USER,ORG,PASSWD,TYPES,WARNING,CRITICAL,NAGIOS,HTML,HTML_File,LS,LS_File,Skip_Single,Verbose)=process_args(parse_args())
 
     tcc=TCC(USER,ORG,PASSWD,Verbose)
-    if tcc.Login("JCMBsoft_TSD_Check"):
+
+
+    if HTML:
+        logger.info('Outputting HTML')
+
+        HTML_Unit.output_html_header(HTML_File,"Trimble Synronizer Data Information for: " + ORG)
+        HTML_Unit.output_html_body(HTML_File)
+        HTML_File.write ("Generated at: {0}<br>".format(datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+
+    if not tcc.Login("JCMBsoft_TSD_Check"):
         if HTML:
-            logger.info('Outputting HTML')
+          HTML_File.write ("<h1>Could not login, check user name and passowrd</h1>")
+          sys.exit(10)               
+        else:
+          raise ("Could not login to TCC, check user name and password")
 
-            HTML_Unit.output_html_header(HTML_File,"Trimble Synronizer Data Information for: " + ORG)
-            HTML_Unit.output_html_body(HTML_File)
-            HTML_File.write ("Generated at: {0}<br>".format(datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+          
+          
+           
 
 
-        filespaces=tcc.GetFileSpaces()
+    filespaces=tcc.GetFileSpaces()
 
-        TSD_ID=tcc.Find_TSD_ID(filespaces)
+    TSD_ID=tcc.Find_TSD_ID(filespaces)
 
-        if TSD_ID == None:
-            if HTML:
-              HTML_File.write ("<h1>Organisation does not have a Trimble Synronizer Data folder</h1>")
-              sys.exit(10)               
-            else:
-              raise ("Could not find TSD")
+    if TSD_ID == None:
+        if HTML:
+          HTML_File.write ("<h1>Organisation does not have a Trimble Synronizer Data folder</h1>")
+          sys.exit(10)               
+        else:
+          raise ("Could not find TSD")
 
-        data=tcc.Dir(TSD_ID,TYPES)
+    data=tcc.Dir(TSD_ID,TYPES)
 
 # The dir json is a list of entries, if it is a folder then it has a a list of entrys which might be more directories, welcome to recursion
-        Machines_With_Files=defaultdict(int)
+    Machines_With_Files=defaultdict(int)
 
-        (un_processed,Machines_With_Files)=check_directory(data["entries"], defaultdict(int),LS,LS_File)
+    (un_processed,Machines_With_Files)=check_directory(data["entries"], defaultdict(int),LS,LS_File)
 
-        tcc.Logoff()
-        total_files=un_processed
+    tcc.Logoff()
+    total_files=un_processed
 
-        if Skip_Single:
-            un_processed=0
-            for Machine in Machines_With_Files:
-               if Machines_With_Files[Machine] >1:
-                 un_processed+=Machines_With_Files[Machine]
+    if Skip_Single:
+        un_processed=0
+        for Machine in Machines_With_Files:
+           if Machines_With_Files[Machine] >1:
+             un_processed+=Machines_With_Files[Machine]
 
 
-        if HTML:
-            HTML_File.write("Total Unprocessed Files: "+ str(un_processed))
-            HTML_Unit.output_table_header(HTML_File,"Machines","Machines with Unprocessed files",["Machine","Files"])
-            for Machine in sorted(Machines_With_Files):
-                if Skip_Single:
-                    if Machines_With_Files[Machine]>1:
-                        HTML_Unit.output_table_row(HTML_File,[Machine,Machines_With_Files[Machine]])
-                else:
+    if HTML:
+        HTML_File.write("Total Unprocessed Files: "+ str(un_processed))
+        HTML_Unit.output_table_header(HTML_File,"Machines","Machines with Unprocessed files",["Machine","Files"])
+        for Machine in sorted(Machines_With_Files):
+            if Skip_Single:
+                if Machines_With_Files[Machine]>1:
                     HTML_Unit.output_table_row(HTML_File,[Machine,Machines_With_Files[Machine]])
-            HTML_Unit.output_table_footer(HTML_File)
-            HTML_Unit.output_html_footer(HTML_File,["Machines"])
-
-        if NAGIOS:
-            if un_processed >= CRITICAL:
-                print "CRITICAL - {} unprocessed files".format(un_processed)
-                sys.exit(2)
-            elif un_processed >= WARNING:
-                print "WARNING - {} unprocessed files".format(un_processed)
-                sys.exit(1)
             else:
-                print "OK - {} unprocessed files".format(un_processed)
-                sys.exit(0)
+                HTML_Unit.output_table_row(HTML_File,[Machine,Machines_With_Files[Machine]])
+        HTML_Unit.output_table_footer(HTML_File)
+        HTML_Unit.output_html_footer(HTML_File,["Machines"])
+
+    if NAGIOS:
+        if un_processed >= CRITICAL:
+            print "CRITICAL - {} unprocessed files".format(un_processed)
+            sys.exit(2)
+        elif un_processed >= WARNING:
+            print "WARNING - {} unprocessed files".format(un_processed)
+            sys.exit(1)
+        else:
+            print "OK - {} unprocessed files".format(un_processed)
+            sys.exit(0)
 
 
 if __name__ == "__main__":
