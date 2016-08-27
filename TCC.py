@@ -77,6 +77,20 @@ class TCC:
             self.logger.debug("Got filespaces from TCC")
             return (r.json())
 
+
+    def GetFileSpaceStatistics(self,filespaceid):
+        if not self.Logged_In:
+            raise ("Not Logged into TCC in Get File Spaces")
+
+        r=requests.get(self.TCC_API + "GetFileSpaceStatistics?filespaceid="+filespaceid,cookies=self.login_cookies)
+        self.logger.debug(self.TCC_API + "GetFileSpaceStatistics?filespaceid="+filespaceid)
+        if r.status_code != 200:
+            self.logger.error("Could not get FileSpaceStatistics from TCC")
+            return (None)
+        else:
+            self.logger.debug("Got FileSpaceStatistics from TCC")
+            return (r.json())
+
     def GetOrganization(self,orgid):
         if not self.Logged_In:
             raise ("Not Logged into TCC in Get Organization")

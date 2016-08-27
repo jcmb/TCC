@@ -1,9 +1,8 @@
-#! /usr/bin/env python
+#! /usr/bin/env python -u
 
 import sys
 reload(sys)
 sys.setdefaultencoding('utf-8')
-#sys.path.append("/Users/gkirk/Dropbox/Git/PyLib")
 
 try:
     assert sys.version_info >= (2,7,9       )
@@ -21,6 +20,8 @@ from TCC import TCC
 
 try:
     from JCMBSoftPyLib import HTML_Unit
+    from JCMBSoftPyLib import HumanBytes
+    
 except:
     sys.exit("JCMBSoftPyLib must be installed. ")
 
@@ -197,6 +198,15 @@ def main():
         else:
           raise ("Could not find TSD")
 
+    FileSpaceStatistics=tcc.GetFileSpaceStatistics(TSD_ID)
+    
+    if FileSpaceStatistics != None:
+        HTML_File.write ("<ul>")
+        HTML_File.write ("<li>Number of files: {}\n</li>".format(FileSpaceStatistics["numberoffiles"]))
+        HTML_File.write ("<li>Size of files: {}\n</li>".format(HumanBytes.humanbytes(FileSpaceStatistics["sizeoffiles"])))
+        HTML_File.write ("</ul>")
+      
+
     data=tcc.Dir(TSD_ID,TYPES)
 
 # The dir json is a list of entries, if it is a folder then it has a a list of entrys which might be more directories, welcome to recursion
@@ -204,8 +214,9 @@ def main():
 
     (un_processed,Machines_With_Files)=check_directory(data["entries"], defaultdict(int),LS,LS_File)
 
-    tcc.Logoff()
     total_files=un_processed
+
+    tcc.Logoff()
 
     if Skip_Single:
         un_processed=0
@@ -236,6 +247,7 @@ def main():
         else:
             print "OK - {} unprocessed files".format(un_processed)
             sys.exit(0)
+
 
 
 if __name__ == "__main__":
