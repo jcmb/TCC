@@ -77,6 +77,30 @@ class TCC:
             self.logger.debug("Got filespaces from TCC")
             return (r.json())
 
+    def GetOrganization(self,orgid):
+        if not self.Logged_In:
+            raise ("Not Logged into TCC in Get Organization")
+
+        r=requests.get(self.TCC_API + "GetOrganization?orgid="+orgid,cookies=self.login_cookies)
+        if r.status_code != 200:
+            self.logger.error("Could not GetOrganization from TCC")
+            return (None)
+        else:
+            self.logger.debug("Got GetOrganization from TCC")
+            return (r.json())
+
+    def GetOrganizationTags(self,orgid):
+        if not self.Logged_In:
+            raise ("Not Logged into TCC in GetOrganizationTags")
+
+        r=requests.get(self.TCC_API + "GetOrganizationTags?orgid="+orgid,cookies=self.login_cookies)
+        if r.status_code != 200:
+            self.logger.error("Could not GetOrganizationTags from TCC")
+            return (None)
+        else:
+            self.logger.debug("Got GetOrganizationTags from TCC")
+            return (r.json())
+
     def Find_TSD_ID(self,filespaces):
         if filespaces == None:
             return (None)
