@@ -14,6 +14,7 @@ import logging
 import json
 import os
 import argparse
+import urllib
 from collections import defaultdict
 
 from TCC import TCC
@@ -249,6 +250,11 @@ def main():
             else:
                 HTML_Unit.output_table_row(HTML_File,[Machine,Machines_With_Files[Machine]])
         HTML_Unit.output_table_footer(HTML_File)
+
+        parms={ 'USER' : USER, 'ORG' : ORG, "PASS" : PASSWD}
+        param_string=urllib.urlencode(parms)        
+        HTML_File.write("<br><a href=\"/cgi-bin/Touch_Tags?{}\">Resubmit Tags<a/><br/>".format(param_string))
+        HTML_File.write("Note that resubmitting the TAG files for processing will update there time stamp to the current time")
         HTML_Unit.output_html_footer(HTML_File,["Machines"])
 
     if NAGIOS:
