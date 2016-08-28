@@ -253,7 +253,7 @@ def main():
 
         parms={ 'USER' : USER, 'ORG' : ORG, "PASS" : PASSWD}
         param_string=urllib.urlencode(parms)        
-        HTML_File.write("<br><a href=\"/cgi-bin/Touch_Tags?{}\">Resubmit Tags<a/><br/>".format(param_string))
+        HTML_File.write("<br><a href=\"/cgi-bin/Touch_Tags?{}\">Resubmit Tags</a><br/>".format(param_string))
         HTML_File.write("Note that resubmitting the TAG files for processing will update there time stamp to the current time")
         HTML_Unit.output_html_footer(HTML_File,["Machines"])
 
