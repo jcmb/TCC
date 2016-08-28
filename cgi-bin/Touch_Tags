@@ -4,6 +4,6 @@ echo -e "<html><head><title>Resubmit unprocessed TAG files</title></head><body><
 USER=`echo "$QUERY_STRING" | sed -n 's/^.*USER=\([^&]*\).*$/\1/p' | sed "s/%20/ /g"`
 ORG=`echo "$QUERY_STRING" | sed -n 's/^.*ORG=\([^&]*\).*$/\1/p' | sed "s/%20/ /g"`
 PASS=`echo "$QUERY_STRING" | sed -n 's/^.*PASS=\([^&]*\).*$/\1/p' | sed "s/%20/ /g"`
-
+echo "Processing tag files in organization: $ORG"
 TSD_Check.py -u $USER -o $ORG -p $PASS --LS | TCC_Touch.py -u $USER -o $ORG -p $PASS - &
 disown

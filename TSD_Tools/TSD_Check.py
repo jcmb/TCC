@@ -251,8 +251,10 @@ def main():
                 HTML_Unit.output_table_row(HTML_File,[Machine,Machines_With_Files[Machine]])
         HTML_Unit.output_table_footer(HTML_File)
 
-        parms={ 'USER' : USER, 'ORG' : ORG, "PASS" : PASSWD}
-        param_string=urllib.urlencode(parms)        
+#        parms={ 'USER' : USER, 'ORG' : ORG, "PASS" : PASSWD}
+#        param_string=urllib.urlencode(parms)        
+        param_string="USER={}&ORG={}&PASS={}".format(USER,ORG,PASSWD)
+        #We assume that the parameters have already been encoded, which is what they are in the cgi script case
         HTML_File.write("<br><a href=\"/cgi-bin/Touch_Tags?{}\">Resubmit Tags</a><br/>".format(param_string))
         HTML_File.write("Note that resubmitting the TAG files for processing will update there time stamp to the current time")
         HTML_Unit.output_html_footer(HTML_File,["Machines"])
