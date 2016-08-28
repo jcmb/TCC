@@ -17,5 +17,6 @@ setup(name='TCC Utils',
         'TCC_Files/TCC_FileAccess.py',
         'TSD_Tools/TSD_Check.py',
         'TSD_Tools/TSD_Download.py',
+        'TCC_Touch/TCC_Touch.py',
         'TAM_Items/TAM_Items.py']
      )
