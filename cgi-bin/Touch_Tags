@@ -1,6 +1,6 @@
 #! /bin/bash
 echo -e "Content-type: text/html\r\n\r\n"
-echo -e "<html><head><title>INFORMATION ON UNPROCESSED TAG FILES</title></head><body><pre>"
+echo -e "<html><head><title>Resubmit unprocessed TAG files</title></head><body><pre>"
 USER=`echo "$QUERY_STRING" | sed -n 's/^.*USER=\([^&]*\).*$/\1/p' | sed "s/%20/ /g"`
 ORG=`echo "$QUERY_STRING" | sed -n 's/^.*ORG=\([^&]*\).*$/\1/p' | sed "s/%20/ /g"`
 PASS=`echo "$QUERY_STRING" | sed -n 's/^.*PASS=\([^&]*\).*$/\1/p' | sed "s/%20/ /g"`
