@@ -202,13 +202,13 @@ def main():
         else:
           raise ("Could not find TSD")
 
-    FileSpaceStatistics=tcc.GetFileSpaceStatistics(TSD_ID)
+    if HTML:
+        FileSpaceStatistics=tcc.GetFileSpaceStatistics(TSD_ID)
     
-    if FileSpaceStatistics != None:
-        logger.info("Number of all files: {}".format(FileSpaceStatistics["numberoffiles"]))
-        logger.info("Size of all files: {}".format(HumanBytes.humanbytes(FileSpaceStatistics["sizeoffiles"])))
+        if FileSpaceStatistics != None:
+            logger.info("Number of all files: {}".format(FileSpaceStatistics["numberoffiles"]))
+            logger.info("Size of all files: {}".format(HumanBytes.humanbytes(FileSpaceStatistics["sizeoffiles"])))
 
-        if HTML:
             HTML_File.write ("<ul>")
             HTML_File.write ("<li>Number of all files: {}\n</li>".format(FileSpaceStatistics["numberoffiles"]))
             HTML_File.write ("<li>Size of all files: {}\n</li>".format(HumanBytes.humanbytes(FileSpaceStatistics["sizeoffiles"])))

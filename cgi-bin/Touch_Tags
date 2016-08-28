@@ -5,5 +5,5 @@ USER=`echo "$QUERY_STRING" | sed -n 's/^.*USER=\([^&]*\).*$/\1/p' | sed "s/%20/ 
 ORG=`echo "$QUERY_STRING" | sed -n 's/^.*ORG=\([^&]*\).*$/\1/p' | sed "s/%20/ /g"`
 PASS=`echo "$QUERY_STRING" | sed -n 's/^.*PASS=\([^&]*\).*$/\1/p' | sed "s/%20/ /g"`
 
-TSD_Check.py -u $USER -o $ORG -p $PASS --LS | TEE | TCC_Touch -u $USER -o $ORG -p $PASS - &
+TSD_Check.py -u $USER -o $ORG -p $PASS --LS | TCC_Touch.py -u $USER -o $ORG -p $PASS - &
 disown
