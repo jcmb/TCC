@@ -20,6 +20,7 @@ class TCC:
         self.Logged_In=False
         self.Verbose=Verbose
         self.logger=logging.getLogger("TCC (" + USER + "." + ORG+")")
+        self.ORG_DETAILS={}
 
         if Verbose==0:
             self.logger.setLevel(logging.WARNING)
@@ -192,7 +193,8 @@ class TCC:
     def GetOrganizationDashboard(self,orgtypefilter="",licensefilter="",orgtagfilter="",organizationProfiles="",membershipDetails="",deviceDetails="",groupDetails=""):
         self.logger.debug("About to Get Org Dashboard: " +self.TCC_API + "GetOrganizationDashboard?membershipDetails="+membershipDetails+"&deviceDetails="+deviceDetails+"&organizationProfiles="+organizationProfiles)
         r=requests.get(self.TCC_API + "GetOrganizationDashboard?membershipDetails="+membershipDetails+"&deviceDetails="+deviceDetails+"&organizationProfiles="+organizationProfiles,cookies=self.login_cookies)
-        return(r.json())
+        self.ORG_DETAILS=r.json()
+        return(self.ORG_DETAILS)
         
     def UpdateDateTime(self,filespaceid,path,createTime=None,modifyTime=None):
         if createTime==None and modifyTime==None :
