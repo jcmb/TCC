@@ -137,9 +137,9 @@ def check_directory(dir,Machines_With_Files,LS,LS_File):
    files=0
    total_files=0
 
-
+   pprint (dir)
    for entry in dir:
-#      pprint (entry)
+      pprint (entry)
       if entry["isFolder"]:
          logger.debug('Folder : '+ entry["entryName"])
          (New_Files,Machines_With_Files,Total_Files)=check_directory(entry["entries"],Machines_With_Files,LS,LS_File)
@@ -162,8 +162,8 @@ def check_directory(dir,Machines_With_Files,LS,LS_File):
          else:
             logger.debug('File Archived: '+ entry["entryName"])
 
-   logger.debug("Files: " + dir[0]["entryName"] + " ("+str(files)+")")
-#   pprint (Machines_With_Files)
+#   logger.debug("Files: " + dir[0]["entryName"] + " ("+str(files)+")")
+   pprint (Machines_With_Files)
    return (files,Machines_With_Files,total_files)
 
 def main():
@@ -177,7 +177,7 @@ def main():
 
         HTML_Unit.output_html_header(HTML_File,"Trimble Synronizer Data Information for: " + ORG)
         HTML_Unit.output_html_body(HTML_File)
-        HTML_File.write ("Generated at: {0}<br>".format(datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+        HTML_File.write ("Generation started at: {0}<br>".format(datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
 
     if not tcc.Login("JCMBsoft_TSD_Check"):
         if HTML:
@@ -215,6 +215,7 @@ def main():
             HTML_File.write ("</ul>\n")
       
     data=tcc.Dir(TSD_ID,TYPES)
+#    pprint (data)
 
 # The dir json is a list of entries, if it is a folder then it has a a list of entrys which might be more directories, welcome to recursion
     Machines_With_Files=defaultdict(int)
@@ -257,6 +258,8 @@ def main():
         #We assume that the parameters have already been encoded, which is what they are in the cgi script case
         HTML_File.write("<br><a href=\"/cgi-bin/Touch_Tags?{}\">Resubmit Tags</a><br/>".format(param_string))
         HTML_File.write("Note that resubmitting the TAG files for processing will update there time stamp to the current time")
+        HTML_File.write ("Generation finished at: {0}<br>".format(datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+        
         HTML_Unit.output_html_footer(HTML_File,["Machines"])
 
     if NAGIOS:
