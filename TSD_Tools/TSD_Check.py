@@ -1,4 +1,5 @@
 #! /usr/bin/env python -u
+#!/usr/bin/python -u
 
 import sys
 reload(sys)
@@ -22,7 +23,7 @@ from TCC import TCC
 try:
     from JCMBSoftPyLib import HTML_Unit
     from JCMBSoftPyLib import HumanBytes
-    
+
 except:
     sys.exit("JCMBSoftPyLib must be installed. ")
 
@@ -137,9 +138,9 @@ def check_directory(dir,Machines_With_Files,LS,LS_File):
    files=0
    total_files=0
 
-   pprint (dir)
+
    for entry in dir:
-      pprint (entry)
+#      pprint (entry)
       if entry["isFolder"]:
          logger.debug('Folder : '+ entry["entryName"])
          (New_Files,Machines_With_Files,Total_Files)=check_directory(entry["entries"],Machines_With_Files,LS,LS_File)
@@ -147,7 +148,7 @@ def check_directory(dir,Machines_With_Files,LS,LS_File):
          total_files+=Total_Files
       else:
          total_files+=1
-         if not "Production-Data (Archived)" in  entry["entryName"]:
+         if not (("Production-Data (Archived)" in  entry["entryName"]) or ("Project Boundary (Issue)" in  entry["entryName"]) or ("Other... (Issue)" in  entry["entryName"]) or  ("Subscription (Issue)"  in  entry["entryName"])):
             logger.info('File Not Processed: '+ entry["entryName"])
             files+=1
             if LS:
@@ -162,8 +163,8 @@ def check_directory(dir,Machines_With_Files,LS,LS_File):
          else:
             logger.debug('File Archived: '+ entry["entryName"])
 
-#   logger.debug("Files: " + dir[0]["entryName"] + " ("+str(files)+")")
-   pprint (Machines_With_Files)
+   logger.debug("Files: " + dir[0]["entryName"] + " ("+str(files)+")")
+#   pprint (Machines_With_Files)
    return (files,Machines_With_Files,total_files)
 
 def main():
@@ -182,13 +183,13 @@ def main():
     if not tcc.Login("JCMBsoft_TSD_Check"):
         if HTML:
           HTML_File.write ("<h1>Could not login, check user name and passowrd</h1>")
-          sys.exit(10)               
+          sys.exit(10)
         else:
           raise ("Could not login to TCC, check user name and password")
 
-          
-          
-           
+
+
+
 
 
     filespaces=tcc.GetFileSpaces()
@@ -198,13 +199,13 @@ def main():
     if TSD_ID == None:
         if HTML:
           HTML_File.write ("<h1>Organisation does not have a Trimble Synronizer Data folder</h1>")
-          sys.exit(10)               
+          sys.exit(10)
         else:
           raise ("Could not find TSD")
 
     if HTML:
         FileSpaceStatistics=tcc.GetFileSpaceStatistics(TSD_ID)
-    
+
         if FileSpaceStatistics != None:
             logger.info("Number of all files: {}".format(FileSpaceStatistics["numberoffiles"]))
             logger.info("Size of all files: {}".format(HumanBytes.humanbytes(FileSpaceStatistics["sizeoffiles"])))
@@ -213,9 +214,8 @@ def main():
             HTML_File.write ("<li>Number of all files: {}\n</li>".format(FileSpaceStatistics["numberoffiles"]))
             HTML_File.write ("<li>Size of all files: {}\n</li>".format(HumanBytes.humanbytes(FileSpaceStatistics["sizeoffiles"])))
             HTML_File.write ("</ul>\n")
-      
+
     data=tcc.Dir(TSD_ID,TYPES)
-#    pprint (data)
 
 # The dir json is a list of entries, if it is a folder then it has a a list of entrys which might be more directories, welcome to recursion
     Machines_With_Files=defaultdict(int)
@@ -253,13 +253,12 @@ def main():
         HTML_Unit.output_table_footer(HTML_File)
 
 #        parms={ 'USER' : USER, 'ORG' : ORG, "PASS" : PASSWD}
-#        param_string=urllib.urlencode(parms)        
+#        param_string=urllib.urlencode(parms)
         param_string="USER={}&ORG={}&PASS={}".format(USER,ORG,PASSWD)
         #We assume that the parameters have already been encoded, which is what they are in the cgi script case
         HTML_File.write("<br><a href=\"/cgi-bin/Touch_Tags?{}\">Resubmit Tags</a><br/>".format(param_string))
         HTML_File.write("Note that resubmitting the TAG files for processing will update there time stamp to the current time")
-        HTML_File.write ("Generation finished at: {0}<br>".format(datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-        
+        HTML_File.write ("Generation ended at: {0}<br>".format(datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
         HTML_Unit.output_html_footer(HTML_File,["Machines"])
 
     if NAGIOS:
