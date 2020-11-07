@@ -18,9 +18,9 @@ logger=logging.getLogger("IBSS_Check_Nagios")
 
 
 def parse_args():
-   argp = argparse.ArgumentParser(description="Check a Trimble Syncronizer Data for files of a give type.\nMostly used to check for tag files being stuck",
+   argp = argparse.ArgumentParser(description="Check if a device is connected to a IBSS MountPoint",fromfile_prefix_chars="@",
    epilog="""
-   V1.0 (c) JCMBsoft 2016
+   V1.0 (c) JCMBsoft 2020
    """);
    argp.add_argument('-u', '--user', metavar='USER', required=True,
                    help='TCC User Name')
