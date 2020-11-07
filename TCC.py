@@ -3,7 +3,7 @@ import logging
 import requests
 import urllib
 from pprint import pprint
-from datetime import datetime 
+from datetime import datetime
 
 logging.basicConfig(level=logging.DEBUG)
 logging.getLogger("requests").setLevel(logging.WARNING)
@@ -39,12 +39,14 @@ class TCC:
 
         try:
             r=requests.get(self.TCC_API + "login?username={}&orgname={}&password={}&applicationkey={}".format(self.USER,self.ORG,self.PASSWD,Application_Type))
+#            pprint(r.json())
             if r.status_code != 200:
                 self.logger.error("Could not login TCC")
             else:
                 self.logger.debug("Logged into TCC")
                 self.Logged_In=True
                 self.login_cookies=r.cookies
+                self.accountid=r.json()["accountid"]
         except:
             self.logger.error("Could not connect to TCC")
         return (self.Logged_In)
@@ -168,8 +170,8 @@ class TCC:
         else:
            OK=False
            self.logger.warning("Failed to download: " + TCC_File + " to " + Local_FileName)
-           
-        return (OK) 
+
+        return (OK)
 
     def ticket(self):
         if not self.Logged_In:
@@ -190,12 +192,18 @@ class TCC:
            r=requests.get(self.TCC_API + "GetLoginAccounts?orgid="+orgid,cookies=self.login_cookies)
         return(r.json())
 
+    def GetLoginAccount(self):
+        r=requests.get(self.TCC_API + "GetLoginAccount?loginaccountid="+self.accountid,cookies=self.login_cookies)
+        return(r.json())
+
+
+
     def GetOrganizationDashboard(self,orgtypefilter="",licensefilter="",orgtagfilter="",organizationProfiles="",membershipDetails="",deviceDetails="",groupDetails=""):
         self.logger.debug("About to Get Org Dashboard: " +self.TCC_API + "GetOrganizationDashboard?membershipDetails="+membershipDetails+"&deviceDetails="+deviceDetails+"&organizationProfiles="+organizationProfiles)
         r=requests.get(self.TCC_API + "GetOrganizationDashboard?membershipDetails="+membershipDetails+"&deviceDetails="+deviceDetails+"&organizationProfiles="+organizationProfiles,cookies=self.login_cookies)
         self.ORG_DETAILS=r.json()
         return(self.ORG_DETAILS)
-        
+
     def UpdateDateTime(self,filespaceid,path,createTime=None,modifyTime=None):
         if createTime==None and modifyTime==None :
 #            print datetime.utcnow()
@@ -211,8 +219,28 @@ class TCC:
           'createTime':createTime,
           'modifyTime':modifyTime
         }
-        
+
         r=requests.get(self.TCC_API + "UpdateDateTime",cookies=self.login_cookies,params=params)
-        
+
         return(r.json())
-            
+
+
+    def GetMountPoints(self,orgid,MountPointTypeFilter="",wantallpublic="",getinactive=""):
+        if not self.Logged_In:
+            raise ("Not Logged into TCC in Get Mountpoints")
+
+        self.logger.debug("About to Get Org Mountpoints: " +self.TCC_API + "GetMountPoints?orgid="+orgid+"&MountPointTypeFilter="+MountPointTypeFilter+"&WantAllPublic="+wantallpublic+"&getinactive="+getinactive)
+        r=requests.get(self.TCC_API + "GetMountPoints?orgid="+orgid+"&MountPointTypeFilter="+MountPointTypeFilter+"&WantAllPublic="+wantallpublic+"&getinactive="+getinactive,cookies=self.login_cookies)
+        return(r.json())
+
+    def GetMountPointConnectionList(self,mountpointid):
+        if not self.Logged_In:
+            raise ("Not Logged into TCC in GetMountPointConnectionList")
+
+        self.logger.debug("About to GetMountPointConnectionList: " +self.TCC_API + "GetMountPointConnectionList?mountpointid="+mountpointid)
+        r=requests.get(self.TCC_API + "GetMountPointConnectionList?mountpointid="+mountpointid,cookies=self.login_cookies)
+        return(r.json())
+
+
+
+
