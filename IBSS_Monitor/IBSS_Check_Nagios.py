@@ -18,7 +18,7 @@ logger=logging.getLogger("IBSS_Check_Nagios")
 
 
 def parse_args():
-   argp = argparse.ArgumentParser(description="Check if a device is connected to a IBSS MountPoint",fromfile_prefix_chars="@",
+   argp = argparse.ArgumentParser(description="Check if a device is connected to a IBSS MountPoint",fromfile_prefix_chars='@',
    epilog="""
    V1.0 (c) JCMBsoft 2020
    """);
@@ -96,7 +96,7 @@ def main():
 
 
         MountPoints=tcc.GetMountPoints("",wantallpublic="True",getinactive="False")
-#        pprint(MountPoints)
+        pprint(MountPoints)
         MountpointId=get_mountpointid(MountPoints,MOUNT)
         if MountpointId==None:
             print ("WARNING - Could not Find the Mountpoint {}".format(MOUNT))
