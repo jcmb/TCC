@@ -1,9 +1,9 @@
-#! /usr/bin/env python -u
 #!/usr/bin/python -u
 
 import sys
 reload(sys)
 sys.setdefaultencoding('utf-8')
+
 
 try:
     assert sys.version_info >= (2,7,9       )
@@ -39,7 +39,7 @@ logger=logging.getLogger("TSD_Check")
 def parse_args():
    argp = argparse.ArgumentParser(description="Check a Trimble Syncronizer Data for files of a give type.\nMostly used to check for tag files being stuck",
    epilog="""
-   V1.0 (c) JCMBsoft 2016
+   V1.1 (c) JCMBsoft 2020
    """);
    argp.add_argument('-u', '--user', metavar='USER', required=True,
                    help='TCC User Name')
@@ -60,8 +60,8 @@ def parse_args():
    argp.add_argument('--LSFILE', nargs='?', type=argparse.FileType('w'),default=sys.stdout,
                    help='Output LS to this file. Otherwise stdout. Only valid in LS mode')
 
-   argp.add_argument('-t', '--type', metavar='EXTENSION', default=".tag",
-                   help='file types to be checked')
+   argp.add_argument('-t', '--type', metavar='EXTENSION', default=None,
+                   help='file types to be checked. Defualt .tag & .tds')
 
    argp.add_argument('-1', '--single', action='store_true',
                    help='Ignore machines with only 1 file. Automatically set for Nagios')
@@ -109,12 +109,9 @@ def process_args(args):
        if WARNING>= CRITICAL:
           sys.exit("Warning level must be smaller than the critical value")
 
-   if len(TYPES) == 0:
-      sys.exit("Length of type can not be 0")
-   else:
-      if TYPES[0]!=".":
-         logger.debug("File type did not have a . at the start, have added it")
-         TYPES="."+TYPES
+   if ((TYPES != None) and TYPES[0]!="."):
+      logger.debug("File type did not have a . at the start, have added it")
+      TYPES="."+TYPES
 
    if args.Tell:
       sys.stderr.write("User: {} Org: {}\n".format(USER,ORG))
@@ -148,7 +145,7 @@ def check_directory(dir,Machines_With_Files,LS,LS_File):
          total_files+=Total_Files
       else:
          total_files+=1
-         if not (("Production-Data (Archived)" in  entry["entryName"]) or ("Project Boundary (Issue)" in  entry["entryName"]) or ("Other... (Issue)" in  entry["entryName"]) or  ("Subscription (Issue)"  in  entry["entryName"])):
+         if not (("Production-Data (Archived)" in  entry["entryName"]) or (".Archived" in  entry["entryName"]) or ("Project Boundary (Issue)" in  entry["entryName"]) or ("Other... (Issue)" in  entry["entryName"]) or  ("Subscription (Issue)"  in  entry["entryName"])):
             logger.info('File Not Processed: '+ entry["entryName"])
             files+=1
             if LS:
@@ -163,7 +160,7 @@ def check_directory(dir,Machines_With_Files,LS,LS_File):
          else:
             logger.debug('File Archived: '+ entry["entryName"])
 
-   logger.debug("Files: " + dir[0]["entryName"] + " ("+str(files)+")")
+      logger.debug("Files: " + entry["entryName"] + " ("+str(files)+")")
 #   pprint (Machines_With_Files)
    return (files,Machines_With_Files,total_files)
 
@@ -207,15 +204,19 @@ def main():
         FileSpaceStatistics=tcc.GetFileSpaceStatistics(TSD_ID)
 
         if FileSpaceStatistics != None:
-            logger.info("Number of all files: {}".format(FileSpaceStatistics["numberoffiles"]))
+            logger.info("Total number of files: {}".format(FileSpaceStatistics["numberoffiles"]))
             logger.info("Size of all files: {}".format(HumanBytes.humanbytes(FileSpaceStatistics["sizeoffiles"])))
 
             HTML_File.write ("<ul>")
-            HTML_File.write ("<li>Number of all files: {}\n</li>".format(FileSpaceStatistics["numberoffiles"]))
+            HTML_File.write ("<li>Total number of files: {}\n</li>".format(FileSpaceStatistics["numberoffiles"]))
             HTML_File.write ("<li>Size of all files: {}\n</li>".format(HumanBytes.humanbytes(FileSpaceStatistics["sizeoffiles"])))
             HTML_File.write ("</ul>\n")
 
-    data=tcc.Dir(TSD_ID,TYPES)
+    if TYPES == None:
+        data=tcc.Dir(TSD_ID,".tag")
+    else:
+        data=tcc.Dir(TSD_ID,TYPES)
+
 
 # The dir json is a list of entries, if it is a folder then it has a a list of entrys which might be more directories, welcome to recursion
     Machines_With_Files=defaultdict(int)
@@ -228,21 +229,24 @@ def main():
       Machines_With_Files=[]
 
 
-    tcc.Logoff()
-
     if Skip_Single:
         un_processed=0
         for Machine in Machines_With_Files:
            if Machines_With_Files[Machine] >1:
-             un_processed+=Machines_With_Files[Machine]
+               un_processed+=Machines_With_Files[Machine]
 
-    logger.info("Total Files: {}".format(total_files))
-    logger.info("Total Unprocessed Files: {}".format(un_processed))
+    if TYPES == None:
+        logger.info("Total TAG Files: {}".format(total_files))
+        logger.info("Total Unprocessed TAG Files: {}".format(un_processed))
+        HTML_File.write("Total TAG Files: {}<br/>".format(total_files))
+        HTML_File.write("Total TAG Unprocessed Files: {}<br/>".format(un_processed))
+    else:
+        logger.info("Total Files: {}".format(total_files))
+        logger.info("Total Unprocessed {} Files: {}".format(TYPES, un_processed))
+        HTML_File.write("Total {} Files: {}<br/>".format(TYPES, total_files))
+        HTML_File.write("Total {} Unprocessed Files: {}<br/>".format(TYPES,un_processed))
 
     if HTML:
-
-        HTML_File.write("Total Files: {}<br/>".format(total_files))
-        HTML_File.write("Total Unprocessed Files: {}<br/>".format(un_processed))
         HTML_Unit.output_table_header(HTML_File,"Machines","Machines with Unprocessed files",["Machine","Files"])
         for Machine in sorted(Machines_With_Files):
             if Skip_Single:
@@ -257,9 +261,54 @@ def main():
         param_string="USER={}&ORG={}&PASS={}".format(USER,ORG,PASSWD)
         #We assume that the parameters have already been encoded, which is what they are in the cgi script case
         HTML_File.write("<br><a href=\"/cgi-bin/Touch_Tags?{}\">Resubmit Tags</a><br/>".format(param_string))
-        HTML_File.write("Note that resubmitting the TAG files for processing will update there time stamp to the current time")
-        HTML_File.write ("Generation ended at: {0}<br>".format(datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-        HTML_Unit.output_html_footer(HTML_File,["Machines"])
+        HTML_File.write("Note that resubmitting the TAG files for processing will update there time stamp to the current time<br>")
+
+    if TYPES == None:
+        HTML_File.write("<p/>".format(total_files))
+
+        data=tcc.Dir(TSD_ID,".tds")
+
+# The dir json is a list of entries, if it is a folder then it has a a list of entrys which might be more directories, welcome to recursion
+        Machines_With_Files=defaultdict(int)
+
+        if "entries" in data:
+          (un_processed,Machines_With_Files,total_files)=check_directory(data["entries"], defaultdict(int),LS,LS_File)
+        else:
+          un_processed=0
+          total_files=0
+          Machines_With_Files=[]
+
+
+        if Skip_Single:
+            un_processed=0
+            for Machine in Machines_With_Files:
+               if Machines_With_Files[Machine] >1:
+                   un_processed+=Machines_With_Files[Machine]
+
+        logger.info("Total TDS Files: {}".format(total_files))
+        logger.info("Total TDS Unprocessed Files: {}".format(un_processed))
+
+        if HTML:
+
+            HTML_File.write("Total TDS Files: {}<br/>".format(total_files))
+            HTML_File.write("Total TDS Unprocessed Files: {}<br/>".format(un_processed))
+            HTML_Unit.output_table_header(HTML_File,"Machines_TDS","Machines with Unprocessed TDS files",["Machine","Files"])
+            for Machine in sorted(Machines_With_Files):
+                if Skip_Single:
+                    if Machines_With_Files[Machine]>1:
+                        HTML_Unit.output_table_row(HTML_File,[Machine,Machines_With_Files[Machine]])
+                else:
+                    HTML_Unit.output_table_row(HTML_File,[Machine,Machines_With_Files[Machine]])
+            HTML_Unit.output_table_footer(HTML_File)
+
+    #        parms={ 'USER' : USER, 'ORG' : ORG, "PASS" : PASSWD}
+    #        param_string=urllib.urlencode(parms)
+            #We assume that the parameters have already been encoded, which is what they are in the cgi script case
+
+    tcc.Logoff()
+
+    HTML_File.write ("Generation ended at: {0}<br>".format(datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+    HTML_Unit.output_html_footer(HTML_File,["Machines","Machines_TDS"])
 
     if NAGIOS:
         if un_processed >= CRITICAL:
