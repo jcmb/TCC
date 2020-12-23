@@ -19,7 +19,7 @@ def parse_args():
    argp = argparse.ArgumentParser(description="Check a FTP Server for operation",
    epilog="""
 
-   V1.0 (c) JCMBsoft 2016
+   V1.1 (c) JCMBsoft 2020
    """);
    argp.add_argument('-u', '--user', metavar='USER', required=True,
                    help='TCC User Name')
@@ -41,10 +41,18 @@ def parse_args():
    argp.add_argument('--TSD', action='store_true',
                    help='Check that TrimbleSynchronizerData is available to the user')
 
+   argp.add_argument('--PL', action='store_true',
+                   help='Check that ProjectLibrary is available to the user')
+
    argp.add_argument('--BDC', action='store_true',
                    help='Check that BusinessDataCenter is available to the user')
+
+   argp.add_argument('--Count', type=int,
+                   help='Check that there are this number of items in the root directory')
+
    argp.add_argument('-v', '--verbose', action='count', default=0,
                    help='increase output verbosity (use up to 3 times)')
+
    argp.add_argument("-T","--Tell", action='store_true',help="Tell the settings before starting")
    args=argp.parse_args()
    return (args)
@@ -66,7 +74,9 @@ def process_args(args):
    PASSWD=args.password
    INVALID_User=args.invalid_user
    TSD=args.TSD
+   PL=args.PL
    BDC=args.BDC
+   COUNT=args.Count
    DOWNLOAD=args.download
    TIMEOUT=args.timeout
 
@@ -79,12 +89,12 @@ def process_args(args):
       sys.stderr.write("Timeout: {}\n".format(TIMEOUT))
       sys.stderr.write("\n")
 
-   return (USER,ORG,PASSWD,INVALID_User,TSD,BDC,DOWNLOAD,TIMEOUT,Verbose)
+   return (USER,ORG,PASSWD,INVALID_User,TSD,PL,BDC,DOWNLOAD,TIMEOUT,COUNT,Verbose)
 
 
 def main():
     args=parse_args()
-    (USER,ORG,PASSWD,INVALID_User,TSD,BDC,DOWNLOAD,TIMEOUT,Verbose)=process_args(args)
+    (USER,ORG,PASSWD,INVALID_User,TSD,PL,BDC,DOWNLOAD,TIMEOUT,COUNT, Verbose)=process_args(args)
 
     try:
         ftp=ftplib.FTP(ORG+".myconnectedsite.com",timeout=TIMEOUT)
@@ -115,13 +125,31 @@ def main():
         print "CRITICAL - got logged in when expected not to be able to login"
         sys.exit(2)
 
-    dir=ftp.nlst("/TCC/"+ORG+'/')
+    ftp.sendcmd("TYPE I")
+    ftp.cwd("/TCC/"+ORG+'/')
+    dir=ftp.nlst('.')
+#    pprint(dir)
+
+
+    if COUNT != None:
+       if COUNT != len(dir):
+           logger.debug("Directory has {} items, expected {}".format(len(dir),COUNT))
+           print "CRITICAL - Directory has {} items, expected {}".format(len(dir),COUNT)
+           pprint(dir)
+           sys.exit(2)
 
     if not "TrimbleSynchronizerData" in dir:
         logger.debug("Trimble Synchronizer Data Not visible")
         if TSD:
             print "CRITICAL - Can not see Trimble Synchronizer Data"
             sys.exit(2)
+
+    if not "ProjectLibrary" in dir:
+        logger.debug("ProjectLibrary visible")
+        if TSD:
+            print "CRITICAL - Can not see ProjectLibrary"
+            sys.exit(2)
+
 
     if not "BusinessDataCenter" in dir:
         logger.debug("Business Data Center Not visible")
