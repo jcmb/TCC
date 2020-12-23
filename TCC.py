@@ -241,6 +241,17 @@ class TCC:
         r=requests.get(self.TCC_API + "GetMountPointConnectionList?mountpointid="+mountpointid,cookies=self.login_cookies)
         return(r.json())
 
+    def GetMountPointDetails(self,mountpointid):
+        if not self.Logged_In:
+            raise ("Not Logged into TCC in GetMountPointDetails")
+
+        self.logger.debug("About to GetMountPointDetails: " +self.TCC_API + "GetMountPointDetails?mountpointid="+mountpointid)
+        r=requests.get(self.TCC_API + "GetMountPointDetails?mountpointid="+mountpointid,cookies=self.login_cookies)
+        return(r.json())
+
+
+
+
 
 
 
