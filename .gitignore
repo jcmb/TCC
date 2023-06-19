@@ -4,3 +4,4 @@ build/*
 MANIFEST
 
 .DS_Store
+*.zsnap
