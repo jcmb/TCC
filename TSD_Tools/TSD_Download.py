@@ -31,6 +31,9 @@ def parse_args():
    argp.add_argument('-t', '--type', metavar='EXTENSION', default="",
                    help='file types to be downloaded')
 
+   argp.add_argument('--PREFIX', metavar='PREFIX', default="",
+                   help='Only download files that start with the prefix')
+
    group = argp.add_mutually_exclusive_group()
    group.add_argument('-a', '--ALL', action='store_true', default=False,
                    help='If to download from all GCS900 and Earthworks filespaces')
@@ -72,6 +75,7 @@ def process_args(args):
    ORG=args.org
    PASSWD=args.password
    TYPES=args.type
+   PREFIX=args.PREFIX
    NO_ARCHIVE=args.noarchived
    ALL=args.ALL
    TSD=args.TSD
@@ -80,17 +84,18 @@ def process_args(args):
    if args.Tell:
       sys.stderr.write("User: {} Org: {}\n".format(USER,ORG))
       sys.stderr.write("Types: {}\n".format(TYPES))
+      sys.stderr.write("Prefix: {}\n".format(PREFIX))
       sys.stderr.write("Skip Archived: {}\n".format(NO_ARCHIVE))
       sys.stderr.write("All Orgs (GCS900 and EW): {}\n".format(ALL))
       sys.stderr.write("All Orgs (TSD Only): {}\n".format(TSD))
       sys.stderr.write("All Orgs (PL Only): {}\n".format(PL))
       sys.stderr.write("Verbose: {}\n".format(Verbose))
       sys.stderr.write("\n")
-   return (USER,ORG,PASSWD,TYPES,NO_ARCHIVE,ALL,TSD,PL,Verbose)
+   return (USER,ORG,PASSWD,TYPES,NO_ARCHIVE,ALL,TSD,PL,PREFIX,Verbose)
 
 
 
-def process_directory(dir,filespace_ID,tcc,NO_ARCHIVE,TYPES,path=""):
+def process_directory(dir,filespace_ID,tcc,NO_ARCHIVE,TYPES,PREFIX,path=""):
 #   print("Path: " + path)
    for entry in dir:
 #      pprint (entry)
@@ -103,16 +108,17 @@ def process_directory(dir,filespace_ID,tcc,NO_ARCHIVE,TYPES,path=""):
             pass #Assume that the dir is already there
          data=tcc.Dir(filespace_ID,TYPES,False,path+entry["entryName"])
          if data != None:
-             process_directory(data["entries"],filespace_ID,tcc,NO_ARCHIVE,TYPES,path+entry["entryName"]+'/')
+             process_directory(data["entries"],filespace_ID,tcc,NO_ARCHIVE,TYPES,PREFIX, path+entry["entryName"]+'/')
       else:
          if (not NO_ARCHIVE) or (entry["entryName"].find("Production-Data (Archived)")==-1):
-            if os.path.isfile(path+entry["entryName"]) and (os.path.getsize(path+entry["entryName"]) == int(entry["size"])):
-              print('Skipping (Downloaded already): '+ path+ entry["entryName"])
-            else:
-              if tcc.Download(filespace_ID,path+entry["entryName"],"./"+path+entry["entryName"]):
-                 print('Downloaded: '+ path+entry["entryName"])
-              else:
-                 print('Failed to download: '+ entry["entryName"])
+            if entry["entryName"].startswith(PREFIX):
+                if os.path.isfile(path+entry["entryName"]) and (os.path.getsize(path+entry["entryName"]) == int(entry["size"])):
+                  print('Skipping (Downloaded already): '+ path+ entry["entryName"])
+                else:
+                  if tcc.Download(filespace_ID,path+entry["entryName"],"./"+path+entry["entryName"]):
+                     print('Downloaded: '+ path+entry["entryName"])
+                  else:
+                     print('Failed to download: '+ entry["entryName"])
          else:
             print('Skipping (Archived): '+ entry["entryName"])
 
@@ -122,7 +128,7 @@ def process_directory(dir,filespace_ID,tcc,NO_ARCHIVE,TYPES,path=""):
 
 def main():
     args=parse_args()
-    (USER,ORG,PASSWD,TYPES,NO_ARCHIVE,ALL,TSD,PL,Verbose)=process_args(args)
+    (USER,ORG,PASSWD,TYPES,NO_ARCHIVE,ALL,TSD,PL,PREFIX,Verbose)=process_args(args)
     tcc=TCC.TCC(USER,ORG,PASSWD,Verbose)
     if tcc.Login("JCMBsoft_TSD_Download"):
 
@@ -142,7 +148,7 @@ def main():
                     print (". Dir Processed")
                     os.makedirs(orgShortname + os.sep  + "Project Library",exist_ok=True)
                     os.chdir(orgShortname + os.sep  + "Project Library")
-                    process_directory(data["entries"],filespace,tcc,NO_ARCHIVE,TYPES)
+                    process_directory(data["entries"],filespace,tcc,NO_ARCHIVE,TYPES,PREFIX)
                     os.chdir(".." + os.sep  + ".." )
 
         if not PL:
@@ -154,7 +160,7 @@ def main():
                 else:
                     os.makedirs(orgShortname + os.sep  + "Trimble Synchronizer Data",exist_ok=True)
                     os.chdir(orgShortname + os.sep  + "Trimble Synchronizer Data")
-                    process_directory(data["entries"],filespace,tcc,NO_ARCHIVE,TYPES)
+                    process_directory(data["entries"],filespace,tcc,NO_ARCHIVE,TYPES,PREFIX)
                     os.chdir(".." + os.sep  + ".." )
 
         tcc.Logoff()
