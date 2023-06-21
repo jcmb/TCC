@@ -47,6 +47,8 @@ class TCC:
                 self.Logged_In=True
                 self.login_cookies=r.cookies
                 self.accountid=r.json()["accountid"]
+        except KeyboardInterrupt:
+            raise
         except:
             self.logger.error("Could not connect to TCC")
         return (self.Logged_In)
@@ -211,6 +213,8 @@ class TCC:
                return(None)
             else:
                return(r.json())
+        except KeyboardInterrupt:
+            raise
         except:
                return(None)
 
@@ -225,6 +229,8 @@ class TCC:
 
         try:
             r=requests.get(self.TCC_API +"files?filespaceid=" + filespace_ID + '&path=/'+urllib.parse.quote(TCC_File,'()'),stream=True,cookies=self.login_cookies,timeout=300)
+        except KeyboardInterrupt:
+            raise
         except:
             return(False)
 
@@ -235,15 +241,17 @@ class TCC:
                try:
                    for chunk in r.iter_content(chunk_size):
                        fd.write(chunk)
+               except KeyboardInterrupt:
+                   raise
                except:
                    pass
-
            self.logger.debug("Downloaded: " + TCC_File + " to " + Local_FileName)
         else:
            OK=False
            self.logger.warning("Failed to download: " + TCC_File + " to " + Local_FileName)
-
         return (OK)
+
+
 
     def ticket(self):
         if not self.Logged_In:
