@@ -34,8 +34,12 @@ def parse_args():
    argp.add_argument('--PREFIX', metavar='PREFIX', default="",
                    help='Only download files that start with the prefix')
 
-   group = argp.add_mutually_exclusive_group()
-   group.add_argument('-a', '--ALL', action='store_true', default=False,
+   argp.add_argument('-a', '--ALL', action='store_true', default=False,
+                   help='If to download from all organization filespaces.')
+
+
+   group = argp.add_mutually_exclusive_group(required=True)
+   group.add_argument('-b', '--BOTH', action='store_true', default=False,
                    help='If to download from all GCS900 and Earthworks filespaces')
 
    group.add_argument('-g', '--TSD', action='store_true', default=False,
@@ -78,6 +82,7 @@ def process_args(args):
    PREFIX=args.PREFIX
    NO_ARCHIVE=args.noarchived
    ALL=args.ALL
+   BOTH=args.BOTH
    TSD=args.TSD
    PL=args.PL
 
@@ -87,15 +92,71 @@ def process_args(args):
       sys.stderr.write("Prefix: {}\n".format(PREFIX))
       sys.stderr.write("Skip Archived: {}\n".format(NO_ARCHIVE))
       sys.stderr.write("All Orgs (GCS900 and EW): {}\n".format(ALL))
-      sys.stderr.write("All Orgs (TSD Only): {}\n".format(TSD))
-      sys.stderr.write("All Orgs (PL Only): {}\n".format(PL))
+      sys.stderr.write("TSD Only: {}\n".format(TSD))
+      sys.stderr.write("Project Library Only): {}\n".format(PL))
+      sys.stderr.write("TSD And PL (GCS900 and EW): {}\n".format(BOTH))
       sys.stderr.write("Verbose: {}\n".format(Verbose))
       sys.stderr.write("\n")
-   return (USER,ORG,PASSWD,TYPES,NO_ARCHIVE,ALL,TSD,PL,PREFIX,Verbose)
+   return (USER,ORG,PASSWD,TYPES,NO_ARCHIVE,ALL,BOTH,TSD,PL,PREFIX,Verbose)
 
 
 
-def process_directory(dir,filespace_ID,tcc,NO_ARCHIVE,TYPES,PREFIX,path=""):
+def process_directory_slow(dir,filespace_ID,tcc,NO_ARCHIVE,TYPES,PREFIX,path=""):
+#   print("Path: " + path)
+   for entry in dir:
+#      pprint (entry)
+      if entry["isFolder"]:
+         try:
+            print ("Dir: " + path + entry["entryName"])
+            os.mkdir("./"+path+entry["entryName"])
+         except:
+            logging.debug("Failed to make Dir: " + entry["entryName"])
+            pass #Assume that the dir is already there
+         data=tcc.Dir(filespace_ID,TYPES,False,path+entry["entryName"])
+         if data != None:
+             process_directory(data["entries"],filespace_ID,tcc,NO_ARCHIVE,TYPES,PREFIX, path+entry["entryName"]+'/')
+      else:
+         if (not NO_ARCHIVE) or (entry["entryName"].find("Production-Data (Archived)")==-1):
+            if entry["entryName"].startswith(PREFIX):
+                if os.path.isfile(path+entry["entryName"]) and (os.path.getsize(path+entry["entryName"]) == int(entry["size"])):
+                  print('Skipping (Downloaded already): '+ path+ entry["entryName"])
+                else:
+                  if tcc.Download(filespace_ID,path+entry["entryName"],"./"+path+entry["entryName"]):
+                     print('Downloaded: '+ path+entry["entryName"])
+                  else:
+                     print('Failed to download: '+ entry["entryName"])
+         else:
+            print('Skipping (Archived): '+ entry["entryName"])
+
+
+def process_directory(dir,filespace_ID,tcc,NO_ARCHIVE,TYPES,PREFIX):
+   path=""
+   for entry in dir:
+#      pprint (entry)
+      if entry["isFolder"]:
+         try:
+#            print "Dir: " + entry["entryName"]
+            os.mkdir(entry["entryName"])
+         except:
+            logging.debug("Failed to make Dir: " + entry["entryName"])
+            pass #Assume that the dir is already there
+         process_directory(entry["entries"],filespace_ID,tcc,NO_ARCHIVE,TYPES,PREFIX)
+      else:
+         if (not NO_ARCHIVE) or (entry["entryName"].find("Production-Data (Archived)")==-1):
+            if entry["entryName"].startswith(PREFIX):
+                if os.path.isfile(path+entry["entryName"]) and (os.path.getsize(path+entry["entryName"]) == int(entry["size"])):
+                  print('Skipping (Downloaded already): '+ path+ entry["entryName"])
+                else:
+                  if tcc.Download(filespace_ID,path+entry["entryName"],"./"+path+entry["entryName"]):
+                     print('Downloaded: '+ path+entry["entryName"])
+                  else:
+                     print('Failed to download: '+ entry["entryName"])
+         else:
+            print('Skipping (Archived): '+ entry["entryName"])
+
+
+
+def process_all_directory(dir,filespace_ID,tcc,NO_ARCHIVE,TYPES,PREFIX,path=""):
 #   print("Path: " + path)
    for entry in dir:
 #      pprint (entry)
@@ -128,19 +189,21 @@ def process_directory(dir,filespace_ID,tcc,NO_ARCHIVE,TYPES,PREFIX,path=""):
 
 def main():
     args=parse_args()
-    (USER,ORG,PASSWD,TYPES,NO_ARCHIVE,ALL,TSD,PL,PREFIX,Verbose)=process_args(args)
+    (USER,ORG,PASSWD,TYPES,NO_ARCHIVE,ALL,BOTH,TSD,PL,PREFIX,Verbose)=process_args(args)
     tcc=TCC.TCC(USER,ORG,PASSWD,Verbose)
     if tcc.Login("JCMBsoft_TSD_Download"):
 
-        if ALL or PL or TSD:
+        if ALL:
             filespaces=tcc.GetFileSpaces(filter="all")
         else:
             filespaces=tcc.GetFileSpaces()
 
         if not TSD:
             for (filespace,orgShortname) in tcc.FileSpace_ID_generator(filespaces,"Project Library"):
-                print ("Org: " + orgShortname, end = '')
-                data=tcc.Dir(filespace,TYPES,False)
+                print ("PL Org: " + orgShortname, end = '')
+                data=tcc.Dir(filespace,TYPES,True)
+                if Verbose >= 3 :
+                    pprint(data)
 
                 if data == None:
                     print(". Dir Failed for " + orgShortname + ":Project Library")
@@ -153,8 +216,8 @@ def main():
 
         if not PL:
             for (filespace,orgShortname) in tcc.FileSpace_ID_generator(filespaces,"Trimble Synchronizer Data"):
-                print ("Org: " + orgShortname)
-                data=tcc.Dir(filespace,TYPES,False)
+                print ("TSD Org: " + orgShortname)
+                data=tcc.Dir(filespace,TYPES,True)
                 if data == None:
                     print("Dir Failed for " + orgShortname + ":Project Library")
                 else:
