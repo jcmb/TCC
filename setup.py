@@ -13,6 +13,7 @@ setup(name='TCC Utils',
       scripts=[
         'TCC_Check_User/TCC_Check_User.py',
         'TCC_Check_FTP/TCC_Check_FTP.py',
+        'FTP/TCC_GetFileSpaces.py',
         'TCC_Files/TCC_Files.sh',
         'TCC_Files/TCC_FileAccess.py',
         'TSD_Tools/TSD_Check.py',
