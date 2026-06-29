@@ -20,9 +20,9 @@ logger = logging.getLogger("TCC_FTP_GetFileSpaces")
 
 def parse_args():
     argp = argparse.ArgumentParser(
-        description="Connect to TCC via FTP and run site TCCAPISTREAM FastDir",
+        description="Connect to TCC via FTP using FastDir or a recursive FTP scan",
         epilog="""
-   V1.1 (c) JCMBsoft 2026
+   V1.2 (c) JCMBsoft 2026
    """,
     )
     argp.add_argument(
@@ -38,19 +38,19 @@ def parse_args():
         "--path",
         metavar="PATH",
         default="/",
-        help="FastDir Path parameter (default: /)",
+        help="FastDir Path parameter, or subpath for --ftp-scan (default: /)",
     )
     argp.add_argument(
         "--filespace",
         metavar="NAME",
         default="TrimbleSynchronizerData",
-        help="FastDir FileSpaceShortName parameter (default: TrimbleSynchronizerData)",
+        help="File space name under /TCC/<org>/ (default: TrimbleSynchronizerData)",
     )
     argp.add_argument(
         "--recursive",
         metavar="BOOL",
         default="true",
-        help="FastDir Recursive parameter (default: true)",
+        help="Recurse into subdirectories (default: true)",
     )
     argp.add_argument(
         "-t",
@@ -79,10 +79,15 @@ def parse_args():
         help="Print settings before connecting",
     )
     argp.add_argument(
+        "--ftp-scan",
+        action="store_true",
+        help="Use a normal recursive FTP directory scan instead of SITE FastDir",
+    )
+    argp.add_argument(
         "-P",
         "--progress",
         action="store_true",
-        help="Show a progress bar while downloading and parsing FastDir data",
+        help="Show a progress bar while downloading, parsing, or scanning",
     )
     return argp.parse_args()
 
@@ -103,12 +108,298 @@ def process_args(args):
         sys.stderr.write("Path: {}\n".format(args.path))
         sys.stderr.write("FileSpaceShortName: {}\n".format(args.filespace))
         sys.stderr.write("Recursive: {}\n".format(args.recursive))
+        sys.stderr.write("FTP scan mode: {}\n".format(args.ftp_scan))
         sys.stderr.write("Timeout: {}s\n".format(args.timeout))
         sys.stderr.write("Verbose: {}\n".format(args.verbose))
         sys.stderr.write("Progress bar: {}\n".format(args.progress))
         sys.stderr.write("FTP wire debug: {}\n\n".format(args.verbose >= 3 or args.debug))
 
     return args
+
+
+def recursive_enabled(value):
+    return str(value).lower() in ("true", "1", "yes", "on")
+
+
+def format_timestamp(value):
+    if value is None:
+        return "-"
+    return value.strftime("%Y-%m-%d %H:%M:%S")
+
+
+def normalize_display_path(path):
+    if not path or path == "/":
+        return "/"
+    return "/" + path.strip("/")
+
+
+def build_remote_scan_root(org, filespace, path="/"):
+    remote = "/TCC/{}/{}".format(org, filespace)
+    subpath = path.strip("/")
+    if subpath:
+        remote = remote.rstrip("/") + "/" + subpath
+    return remote
+
+
+def build_display_path(base, name, is_dir):
+    if base == "/":
+        display = "/" + name
+    else:
+        display = base.rstrip("/") + "/" + name
+    if is_dir:
+        display += "/"
+    return display
+
+
+def parse_mlsd_timestamp(value):
+    if not value:
+        return None
+    if len(value) >= 14:
+        timestamp = datetime.strptime(value[:14], "%Y%m%d%H%M%S")
+        if len(value) > 15 and value[14] == ".":
+            fraction = value[15:].ljust(6, "0")[:6]
+            timestamp = timestamp.replace(microsecond=int(fraction))
+        return timestamp
+    return None
+
+
+def parse_mdtm_response(response):
+    parts = response.split()
+    if len(parts) < 2:
+        return None
+    return parse_mlsd_timestamp(parts[1])
+
+
+def facts_timestamp(facts, key):
+    if not facts:
+        return None
+    return parse_mlsd_timestamp(facts.get(key))
+
+
+def list_directory_entries(ftp):
+    try:
+        return [(name, facts) for name, facts in ftp.mlsd()], True
+    except ftplib.error_perm:
+        logger.debug("MLSD not supported in %s, falling back to NLST", ftp.pwd())
+        return [(name, None) for name in ftp.nlst()], False
+
+
+def entry_is_directory(ftp, name, facts):
+    if facts:
+        entry_type = facts.get("type")
+        if entry_type == "dir":
+            return True
+        if entry_type == "file":
+            return False
+    current = ftp.pwd()
+    try:
+        ftp.cwd(name)
+        ftp.cwd(current)
+        return True
+    except ftplib.error_perm:
+        ftp.cwd(current)
+        return False
+
+
+def get_file_metadata(ftp, name, facts):
+    modified = facts_timestamp(facts, "modify")
+    created = facts_timestamp(facts, "create")
+    size = 0
+    if facts and facts.get("size") is not None:
+        try:
+            size = int(facts["size"])
+        except (TypeError, ValueError):
+            size = 0
+    if modified is None:
+        try:
+            modified = parse_mdtm_response(ftp.sendcmd("MDTM " + name))
+        except ftplib.error_perm:
+            modified = None
+    if size == 0:
+        try:
+            file_size = ftp.size(name)
+            if file_size is not None:
+                size = int(file_size)
+        except (ftplib.error_perm, TypeError, ValueError):
+            size = 0
+    if created is None:
+        created = modified
+    return created, modified, size
+
+
+def make_scan_entry(entry_type, display_path, created, modified, size):
+    is_folder = entry_type == "folder"
+    return {
+        "type": entry_type,
+        "is_folder": is_folder,
+        "path": display_path,
+        "created": created,
+        "modified": modified,
+        "size": size,
+    }
+
+
+def report_entry_counts_stderr(parsed):
+    sys.stderr.write(
+        "Directories: {}  Files: {}\n".format(
+            parsed["number_dirs"],
+            parsed["number_files"],
+        )
+    )
+    sys.stderr.flush()
+
+
+class ScanStatus:
+    """Live stderr status for recursive FTP scans."""
+
+    def __init__(self, show_status=True, show_progress=False, width=40):
+        self.show_status = show_status
+        self.show_progress = show_progress
+        self.width = width
+        self.number_dirs = 0
+        self.number_files = 0
+        self.total_entries = 0
+        self._last_width = 0
+
+    def note_entry(self, entry):
+        if entry["is_folder"]:
+            self.number_dirs += 1
+        else:
+            self.number_files += 1
+        self.total_entries += 1
+        if self.show_status or self.show_progress:
+            self._render()
+
+    def close(self):
+        if not (self.show_status or self.show_progress):
+            return
+        self._render(done=True)
+        sys.stderr.write("\n")
+        sys.stderr.flush()
+
+    def _render(self, done=False):
+        parts = ["Scanning FTP"]
+        if self.show_progress:
+            marker_pos = self.total_entries % self.width
+            segment = min(3, self.width - marker_pos)
+            bar = (
+                " " * marker_pos
+                + "=" * segment
+                + " " * (self.width - marker_pos - segment)
+            )
+            parts.append("[{}]".format(bar))
+        if self.show_status:
+            parts.append(
+                "{} directories, {} files".format(
+                    self.number_dirs, self.number_files
+                )
+            )
+        message = " ".join(parts)
+        if done:
+            message += " complete"
+        sys.stderr.write(
+            "\r{:<{width}}".format(
+                message, width=max(self._last_width, len(message))
+            )
+        )
+        sys.stderr.flush()
+        self._last_width = max(self._last_width, len(message))
+
+
+def ftp_recursive_scan(
+    ftp,
+    remote_root,
+    display_root="/",
+    recursive=True,
+    show_status=True,
+    show_progress=False,
+):
+    entries = []
+    number_dirs = 0
+    number_files = 0
+    files_size = 0
+    status = ScanStatus(
+        show_status=show_status,
+        show_progress=show_progress,
+    )
+
+    def add_entry(entry):
+        nonlocal number_dirs, number_files, files_size
+        entries.append(entry)
+        if entry["is_folder"]:
+            number_dirs += 1
+        else:
+            number_files += 1
+            files_size += entry["size"]
+        status.note_entry(entry)
+
+    def scan(remote_dir, display_dir, first=False):
+        starting_cwd = ftp.pwd()
+        logger.debug("Scanning remote directory %s", remote_dir)
+        try:
+            ftp.cwd(remote_dir)
+            if first:
+                root_display = normalize_display_path(display_dir)
+                if not root_display.endswith("/"):
+                    root_display += "/"
+                add_entry(
+                    make_scan_entry("folder", root_display, None, None, 0)
+                )
+
+            items, used_mlsd = list_directory_entries(ftp)
+            if not used_mlsd:
+                logger.info("Using NLST/MDTM/SIZE fallback for %s", remote_dir)
+
+            for name, facts in items:
+                if name in (".", ".."):
+                    continue
+
+                is_dir = entry_is_directory(ftp, name, facts)
+                display_path = build_display_path(display_dir, name, is_dir)
+
+                if is_dir:
+                    created = facts_timestamp(facts, "create")
+                    modified = facts_timestamp(facts, "modify")
+                    if modified is None:
+                        modified = created
+                    if created is None:
+                        created = modified
+                    add_entry(
+                        make_scan_entry(
+                            "folder", display_path, created, modified, 0
+                        )
+                    )
+                    if recursive:
+                        scan(
+                            remote_dir.rstrip("/") + "/" + name,
+                            display_path.rstrip("/"),
+                        )
+                        ftp.cwd(remote_dir)
+                else:
+                    created, modified, size = get_file_metadata(ftp, name, facts)
+                    add_entry(
+                        make_scan_entry(
+                            "file", display_path, created, modified, size
+                        )
+                    )
+        finally:
+            ftp.cwd(starting_cwd)
+
+    try:
+        scan(
+            remote_root,
+            normalize_display_path(display_root),
+            first=True,
+        )
+    finally:
+        status.close()
+
+    return {
+        "entries": entries,
+        "number_dirs": number_dirs,
+        "number_files": number_files,
+        "files_size": files_size,
+    }
 
 
 def human_bytes(size):
@@ -284,19 +575,13 @@ def report_fastdir_table(parsed):
                 entry["type"],
                 entry["path"],
                 size,
-                entry["created"].strftime("%Y-%m-%d %H:%M:%S"),
-                entry["modified"].strftime("%Y-%m-%d %H:%M:%S"),
+                format_timestamp(entry["created"]),
+                format_timestamp(entry["modified"]),
             ]
         )
     print_table(headers, rows)
     print()
-    print(
-        "Folders: {}  Files: {}  Total file size: {}".format(
-            parsed["number_dirs"],
-            parsed["number_files"],
-            human_bytes(parsed["files_size"]),
-        )
-    )
+    print("Total file size: {}".format(human_bytes(parsed["files_size"])))
 
 
 def parse_site_response(response):
@@ -431,40 +716,63 @@ def main():
         sys.exit("ERROR - FTP login failed")
 
     show_progress = args.progress and args.verbose < 3 and not args.debug
+    recursive = recursive_enabled(args.recursive)
+    parsed = None
 
     try:
-        logger.info("Running SITE TCCAPISTREAM FastDir")
-        response = send_site_command(
-            ftp, site_argument, show_progress=show_progress
-        )
-        logger.info("SITE command completed")
-        logger.debug("Raw response: %r", response)
-        code, data = parse_site_response(response)
-        if code is not None:
-            logger.info("FTP response code: %s", code)
-        print("FastDir response from {}:".format(host))
-        logger.info("SITE %s", site_argument)
-        if isinstance(data, str) and data.strip().startswith("BEGIN"):
-            try:
-                parsed = parse_fastdir_response(data, show_progress=show_progress)
-                report_fastdir_table(parsed)
-                if args.verbose >= 2:
-                    print()
-                    print("Raw FastDir response:")
-                    print(data)
-            except ValueError as exc:
-                logger.error("%s", exc)
-                print(data)
-        elif isinstance(data, (dict, list)):
-            pprint(data)
+        if args.ftp_scan:
+            remote_root = build_remote_scan_root(
+                args.org, args.filespace, args.path
+            )
+            logger.info("Running recursive FTP scan of %s", remote_root)
+            ftp.sendcmd("TYPE I")
+            parsed = ftp_recursive_scan(
+                ftp,
+                remote_root,
+                display_root=args.path,
+                recursive=recursive,
+                show_status=True,
+                show_progress=show_progress,
+            )
+            print("FTP scan of {}:".format(remote_root))
+            report_fastdir_table(parsed)
         else:
-            print(data)
+            logger.info("Running SITE TCCAPISTREAM FastDir")
+            response = send_site_command(
+                ftp, site_argument, show_progress=show_progress
+            )
+            logger.info("SITE command completed")
+            logger.debug("Raw response: %r", response)
+            code, data = parse_site_response(response)
+            if code is not None:
+                logger.info("FTP response code: %s", code)
+            print("FastDir response from {}:".format(host))
+            logger.info("SITE %s", site_argument)
+            if isinstance(data, str) and data.strip().startswith("BEGIN"):
+                try:
+                    parsed = parse_fastdir_response(
+                        data, show_progress=show_progress
+                    )
+                    report_fastdir_table(parsed)
+                    if args.verbose >= 2:
+                        print()
+                        print("Raw FastDir response:")
+                        print(data)
+                except ValueError as exc:
+                    logger.error("%s", exc)
+                    print(data)
+            elif isinstance(data, (dict, list)):
+                pprint(data)
+            else:
+                print(data)
+        if parsed is not None:
+            report_entry_counts_stderr(parsed)
     except ftplib.error_perm as exc:
-        logger.exception("SITE command failed: %s", exc)
-        sys.exit("ERROR - SITE command failed: {}".format(exc))
+        logger.exception("FTP operation failed: %s", exc)
+        sys.exit("ERROR - FTP operation failed: {}".format(exc))
     except OSError:
-        logger.exception("SITE command failed")
-        sys.exit("ERROR - SITE command failed")
+        logger.exception("FTP operation failed")
+        sys.exit("ERROR - FTP operation failed")
     finally:
         try:
             logger.debug("Closing FTP session")
